@@ -276,12 +276,15 @@
             const password = currentUrl.password || 'admin';
             const auth = btoa(`${username}:${password}`);
 
+            // Construct absolute URL without credentials to avoid fetch errors
+            const absoluteUrl = url.startsWith('http') ? url : `${currentUrl.origin}${url}`;
+
             options.headers = {
                 ...options.headers,
                 'Authorization': `Basic ${auth}`
             };
 
-            return fetch(url, options).then(response => {
+            return fetch(absoluteUrl, options).then(response => {
                 // Cache successful GET responses
                 if (response.ok && (!options.method || options.method === 'GET')) {
                     response.clone().json().then(data => {

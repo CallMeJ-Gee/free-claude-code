@@ -151,7 +151,7 @@ async def config_health(admin_user: str = Depends(get_current_admin_user)):
     has_provider = False
     if settings.nvidia_nim_api_key:
         has_provider = True
-    if settings.openrouter_api_key:
+    if settings.open_router_api_key:
         has_provider = True
     if settings.deepseek_api_key:
         has_provider = True

@@ -19,6 +19,13 @@ uv run ty check
 # Run tests
 uv run pytest
 
+# Run single test
+uv run pytest tests/path/to/test.py::test_function
+
+# Run tests with specific marker
+uv run pytest -m contract
+uv run pytest -m live
+
 # Start the proxy server
 uv run uvicorn server:app --host 0.0.0.0 --port 8082
 
@@ -30,7 +37,7 @@ Run checks in this order before pushing: `uv run ruff format`, `uv run ruff chec
 
 ## Architecture Overview
 
-This is an Anthropic-compatible proxy that routes Claude Code API traffic to multiple providers (NVIDIA NIM, OpenRouter, DeepSeek, LM Studio, llama.cpp, Ollama).
+This is an Anthropic-compatible proxy that routes Claude Code API traffic to multiple providers (NVIDIA NIM, OpenRouter, DeepSeek, LM Studio, llama.cpp, Ollama, Kimi).
 
 ### Dependency Direction
 
@@ -50,6 +57,7 @@ cli → messaging
 - `cli/` - Package entrypoints and Claude CLI subprocess management
 - `config/` - Settings, provider catalog, logging, constants
 - `core/anthropic/` - Shared Anthropic protocol helpers (SSE, conversion, tools, thinking)
+- `ui/` - Admin UI with dashboard, providers, models, routing, settings, logs, system, health, diagnostics, CLI, docs
 - `smoke/` - E2E smoke tests (prereq and product scenarios)
 - `tests/` - Unit and contract tests
 
@@ -70,7 +78,7 @@ cli → messaging
 - `base.py` - Base provider interface (`BaseProvider`, `ProviderConfig`)
 - `openai_compat.py` - OpenAI-style chat base for NIM and similar providers
 - `anthropic_messages.py` - Shared transport for native Anthropic Messages endpoints
-- `nvidia_nim/`, `open_router/`, `deepseek/`, `lmstudio/`, `llamacpp/`, `ollama/` - Provider implementations
+- `nvidia_nim/`, `open_router/`, `deepseek/`, `lmstudio/`, `llamacpp/`, `ollama/`, `kimi/` - Provider implementations
 
 **Core Protocol** (`core/anthropic/`):
 - `sse.py` - SSE event builder for Anthropic-format streaming responses
@@ -100,6 +108,11 @@ cli → messaging
 - `provider_catalog.py` - Neutral provider catalog (IDs, credentials, defaults, capabilities)
 - `nim.py` - Fixed NVIDIA NIM settings (temperature, top_p, etc.)
 - `logging_config.py` - Loguru-based structured logging configuration
+
+**Admin UI** (`ui/`):
+- `routes/` - Admin routes for dashboard, providers, models, routing, settings, logs, system, health, diagnostics, CLI, docs
+- `templates/` - Jinja2 templates with HTMX for interactivity and Tailwind CSS for styling
+- `auth.py` - Basic authentication with bcrypt password hashing
 
 ## Architecture Principles
 
@@ -145,10 +158,12 @@ FCC_LIVE_SMOKE=1 uv run pytest smoke -n 0 -s --tb=short
 See `.env.example` for the canonical list. Key variables:
 
 - `MODEL`, `MODEL_OPUS`, `MODEL_SONNET`, `MODEL_HAIKU` - Model routing
-- `NVIDIA_NIM_API_KEY`, `OPENROUTER_API_KEY`, `DEEPSEEK_API_KEY` - Provider credentials
+- `NVIDIA_NIM_API_KEY`, `OPENROUTER_API_KEY`, `DEEPSEEK_API_KEY`, `KIMI_API_KEY` - Provider credentials
 - `ANTHROPIC_AUTH_TOKEN` - Optional server API key
 - `MESSAGING_PLATFORM` - "discord" | "telegram" | "none"
 - `ENABLE_WEB_SERVER_TOOLS` - Local web_search/web_fetch handling
+- `ENABLE_ADMIN_UI` - Enable admin UI at `/admin/`
+- `ADMIN_USER`, `ADMIN_PASSWORD_HASH` - Admin UI credentials
 
 ## Testing
 
@@ -158,6 +173,16 @@ See `.env.example` for the canonical list. Key variables:
 - Use `uv run pytest` to run tests
 - Use `uv run pytest smoke -n 0 -s --tb=short` for smoke tests
 
+Test markers:
+- `live` - Opt-in local smoke tests that can touch real services
+- `interactive` - Smoke tests requiring manual user interaction
+- `provider` - Live provider checks
+- `messaging` - Live messaging platform checks
+- `cli` - CLI integration checks
+- `clients` - Client compatibility checks
+- `voice` - Voice transcription checks
+- `contract` - Deterministic feature contract checks
+
 ## Important Notes
 
 - Always use `uv run` to run files instead of the global `python` command
@@ -165,3 +190,31 @@ See `.env.example` for the canonical list. Key variables:
 - All CI checks must pass; failing checks block merge
 - Do not add `# type: ignore` or `# ty: ignore`; fix the underlying type issue
 - The syntax `except X, Y:` is supported in Python 3.14 final version
+- Admin UI uses HTMX for interactivity and Tailwind CSS via CDN for styling
+- Admin UI authentication uses basic auth with bcrypt password hashing
+- Admin UI routes are prefixed with `/admin/` and require authentication
+
+## Troubleshooting
+
+### Claude Code says `undefined ... input_tokens`, `$.speed`, or malformed response
+
+Update to the latest commit first. Then check:
+- `ANTHROPIC_BASE_URL` is `http://localhost:8082`, not `http://localhost:8082/v1`
+- The proxy is returning Server-Sent Events for `/v1/messages`
+- `server.log` contains no upstream 400/500 response before the malformed-response error
+
+### llama.cpp or LM Studio returns HTTP 400
+
+This usually means the local runtime rejected the Anthropic Messages request before the proxy could stream a model answer. Check:
+- The local server supports `POST /v1/messages`
+- The model and runtime support the requested context length and tools
+- llama.cpp was started with enough `--ctx-size` for Claude Code prompts
+- The configured base URL includes `/v1` for LM Studio and llama.cpp
+
+### Provider disconnects during streaming
+
+Errors like `incomplete chunked read`, `server disconnected`, or a peer closing the body usually come from the upstream provider or gateway. Reduce concurrency, raise timeouts, or retry later.
+
+### Tool calls work on one model but not another
+
+Tool support is model and provider dependent. Some OpenAI-compatible models emit malformed tool-call deltas, omit tool names, or return tool calls as plain text. Try another model or provider before assuming the proxy is broken.

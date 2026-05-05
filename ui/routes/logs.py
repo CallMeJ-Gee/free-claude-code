@@ -14,8 +14,7 @@ router = APIRouter()
 TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
-# Log file tracking for efficient tailing
-_log_file_position = 0
+# Log file path
 _log_file_path = Path("server.log")
 
 
@@ -39,8 +38,6 @@ async def stream_logs(
     admin_user: str = Depends(get_current_admin_user),
 ):
     """Get recent logs (for polling)."""
-    global _log_file_position
-
     log_file = _log_file_path
     if not log_file.exists():
         return "No log file found"
@@ -48,44 +45,24 @@ async def stream_logs(
     lines = []
     try:
         with open(log_file, 'r') as f:
-            # Get file size
-            f.seek(0, 2)  # Seek to end
-            file_size = f.tell()
+            # Read all lines
+            all_lines = f.readlines()
 
-            # If file was rotated or position is beyond file size, reset
-            if _log_file_position > file_size:
-                _log_file_position = 0
+            # Filter by level
+            if level != "DEBUG":
+                lines = [line for line in all_lines if f"[{level}]" in line or level not in ["INFO", "WARNING", "ERROR"]]
+            else:
+                lines = all_lines
 
-            # Seek to last position
-            f.seek(_log_file_position)
+            # Filter by request_id
+            if filter:
+                lines = [line for line in lines if filter in line]
 
-            # Read new lines
-            new_lines = f.readlines()
+            # Return last 100 lines
+            lines = lines[-100:]
 
-            # Update position
-            _log_file_position = f.tell()
-
-            # If no new lines and position is at 0, read last 100 lines (initial load)
-            if not new_lines and _log_file_position == 0:
-                f.seek(0, 2)
-                file_size = f.tell()
-                if file_size > 0:
-                    # Read last 100 lines
-                    f.seek(max(0, file_size - 10000))  # Go back ~100 lines
-                    new_lines = f.readlines()
-                    _log_file_position = f.tell()
-
-            lines = new_lines
-    except Exception:
-        return "Failed to read log file"
-
-    # Filter by level
-    if level != "DEBUG":
-        lines = [line for line in lines if f"[{level}]" in line or level not in ["INFO", "WARNING", "ERROR"]]
-
-    # Filter by request_id
-    if filter:
-        lines = [line for line in lines if filter in line]
+    except Exception as e:
+        return f"Failed to read log file: {str(e)}"
 
     return "\n".join(lines)
 
