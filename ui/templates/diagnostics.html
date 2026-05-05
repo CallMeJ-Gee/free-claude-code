@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+
+{% block title %}Diagnostics{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <h2 class="text-2xl font-bold mb-6">Diagnostics</h2>
+
+    <!-- Overall Health -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+        <h3 class="text-lg font-semibold mb-4">Overall Health</h3>
+        <div id="overall-health" class="space-y-4">
+            <div class="flex items-center justify-center py-4">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                <span class="ml-2 text-gray-500">Loading...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Information -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+        <h3 class="text-lg font-semibold mb-4">System Information</h3>
+        <div id="system-info" class="space-y-2">
+            <div class="flex items-center justify-center py-4">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                <span class="ml-2 text-gray-500">Loading...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuration Status -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+        <h3 class="text-lg font-semibold mb-4">Configuration Status</h3>
+        <div id="config-status" class="space-y-2">
+            <div class="flex items-center justify-center py-4">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                <span class="ml-2 text-gray-500">Loading...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Provider Connectivity -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">Provider Connectivity</h3>
+            <button onclick="checkProviders()" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">
+                Check All
+            </button>
+        </div>
+        <div id="provider-connectivity" class="space-y-3">
+            <div class="flex items-center justify-center py-4">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                <span class="ml-2 text-gray-500">Loading...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Errors -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">Recent Errors</h3>
+            <div class="flex gap-2">
+                <select id="error-severity" class="border rounded px-2 py-1 text-sm">
+                    <option value="">All</option>
+                    <option value="error">Error</option>
+                    <option value="warning">Warning</option>
+                    <option value="info">Info</option>
+                </select>
+                <button onclick="loadErrors()" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">
+                    Refresh
+                </button>
+                <button onclick="clearErrors()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm">
+                    Clear
+                </button>
+            </div>
+        </div>
+        <div id="recent-errors" class="space-y-2 max-h-96 overflow-auto">
+            <div class="flex items-center justify-center py-4">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                <span class="ml-2 text-gray-500">Loading...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Statistics -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+        <h3 class="text-lg font-semibold mb-4">Error Statistics</h3>
+        <div id="error-stats" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="flex items-center justify-center py-4">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                <span class="ml-2 text-gray-500">Loading...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let diagnosticsInterval = null;
+
+    function loadDiagnostics() {
+        console.log('Loading diagnostics...');
+
+        // Load overall health
+        authenticatedFetch('/admin/health/')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Health data:', data);
+                displayOverallHealth(data);
+                displaySystemInfo(data);
+            })
+            .catch(error => {
+                console.error('Failed to load health:', error);
+                document.getElementById('overall-health').innerHTML = '<div class="text-red-500">Failed to load health data</div>';
+            });
+
+        // Load config status
+        authenticatedFetch('/admin/health/config')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Config data:', data);
+                displayConfigStatus(data);
+            })
+            .catch(error => {
+                console.error('Failed to load config:', error);
+                document.getElementById('config-status').innerHTML = '<div class="text-red-500">Failed to load config data</div>';
+            });
+
+        // Load provider connectivity
+        checkProviders();
+
+        // Load errors
+        loadErrors();
+
+        // Load error stats
+        loadErrorStats();
+    }
+
+    function displayOverallHealth(data) {
+        const container = document.getElementById('overall-health');
+        const statusColors = {
+            'healthy': 'bg-green-500',
+            'warning': 'bg-yellow-500',
+            'degraded': 'bg-orange-500',
+            'error': 'bg-red-500',
+        };
+
+        const statusColor = statusColors[data.status] || 'bg-gray-500';
+
+        container.innerHTML = `
+            <div class="flex items-center">
+                <div class="w-4 h-4 rounded-full ${statusColor} mr-3"></div>
+                <div>
+                    <div class="font-medium capitalize">${data.status}</div>
+                    <div class="text-sm text-gray-500">Last checked: ${new Date(data.timestamp).toLocaleString()}</div>
+                </div>
+            </div>
+            <div class="mt-4 grid grid-cols-2 gap-4">
+                <div>
+                    <div class="text-sm text-gray-500">Uptime</div>
+                    <div class="font-medium">${data.uptime}</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Python Version</div>
+                    <div class="font-medium">${data.python_version}</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Platform</div>
+                    <div class="font-medium">${data.platform}</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Providers</div>
+                    <div class="font-medium">${data.providers.length}</div>
+                </div>
+            </div>
+        `;
+    }
+
+    function displaySystemInfo(data) {
+        const container = document.getElementById('system-info');
+        const resources = data.resources || {};
+
+        container.innerHTML = `
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <div class="text-sm text-gray-500">Memory Usage</div>
+                    <div class="font-medium">${resources.memory_mb || 'N/A'} MB</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">CPU Usage</div>
+                    <div class="font-medium">${resources.cpu_percent || 'N/A'}%</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Thread Count</div>
+                    <div class="font-medium">${resources.thread_count || 'N/A'}</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Config Status</div>
+                    <div class="font-medium capitalize">${data.configuration.status}</div>
+                </div>
+            </div>
+            ${data.configuration.issues.length > 0 ? `
+                <div class="mt-4">
+                    <div class="text-sm text-gray-500 mb-2">Issues</div>
+                    <ul class="list-disc list-inside text-sm text-red-600">
+                        ${data.configuration.issues.map(issue => `<li>${issue}</li>`).join('')}
+                    </ul>
+                </div>
+            ` : ''}
+        `;
+    }
+
+    function displayConfigStatus(data) {
+        const container = document.getElementById('config-status');
+        const statusColor = data.status === 'ok' ? 'text-green-600' : 'text-red-600';
+
+        container.innerHTML = `
+            <div class="flex items-center mb-4">
+                <span class="font-medium ${statusColor} capitalize">${data.status}</span>
+            </div>
+            <div class="space-y-2">
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Providers Configured</span>
+                    <span class="font-medium">${data.configured_providers ? 'Yes' : 'No'}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Issues</span>
+                    <span class="font-medium ${data.issues.length > 0 ? 'text-red-600' : 'text-green-600'}">${data.issues.length}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Warnings</span>
+                    <span class="font-medium ${data.warnings.length > 0 ? 'text-yellow-600' : 'text-green-600'}">${data.warnings.length}</span>
+                </div>
+            </div>
+            ${data.issues.length > 0 ? `
+                <div class="mt-4">
+                    <div class="text-sm font-medium text-red-600 mb-2">Issues:</div>
+                    <ul class="list-disc list-inside text-sm">
+                        ${data.issues.map(issue => `<li class="text-red-600">${issue}</li>`).join('')}
+                    </ul>
+                </div>
+            ` : ''}
+            ${data.warnings.length > 0 ? `
+                <div class="mt-4">
+                    <div class="text-sm font-medium text-yellow-600 mb-2">Warnings:</div>
+                    <ul class="list-disc list-inside text-sm">
+                        ${data.warnings.map(warning => `<li class="text-yellow-600">${warning}</li>`).join('')}
+                    </ul>
+                </div>
+            ` : ''}
+        `;
+    }
+
+    function checkProviders() {
+        const container = document.getElementById('provider-connectivity');
+        container.innerHTML = '<div class="flex items-center justify-center py-4"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div><span class="ml-2 text-gray-500">Checking...</span></div>';
+
+        authenticatedFetch('/admin/health/providers')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Provider health data:', data);
+                container.innerHTML = data.providers.map(p => `
+                    <div class="flex items-center justify-between p-3 border rounded">
+                        <div class="flex items-center">
+                            <div class="w-3 h-3 rounded-full mr-3 ${p.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'}"></div>
+                            <div>
+                                <div class="font-medium">${p.id}</div>
+                                <div class="text-sm text-gray-500">Models: ${p.models_count}</div>
+                            </div>
+                        </div>
+                        <div class="text-sm">
+                            <span class="${p.status === 'healthy' ? 'text-green-600' : 'text-red-600'} capitalize">${p.status}</span>
+                            ${p.error ? `<div class="text-red-500 text-xs">${p.error}</div>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            })
+            .catch(error => {
+                console.error('Failed to check providers:', error);
+                container.innerHTML = '<div class="text-red-500">Failed to check providers</div>';
+            });
+    }
+
+    function loadErrors() {
+        const severity = document.getElementById('error-severity').value;
+        const container = document.getElementById('recent-errors');
+
+        authenticatedFetch(`/admin/errors/list?limit=50&severity=${severity}`)
+            .then(response => response.json())
+            .then(data => {
+                console.log('Errors data:', data);
+                if (data.errors.length === 0) {
+                    container.innerHTML = '<div class="text-gray-500 text-center py-4">No errors</div>';
+                    return;
+                }
+
+                container.innerHTML = data.errors.map(error => {
+                    const severityColors = {
+                        'error': 'border-red-500 bg-red-50',
+                        'warning': 'border-yellow-500 bg-yellow-50',
+                        'info': 'border-blue-500 bg-blue-50',
+                    };
+                    const colorClass = severityColors[error.severity] || 'border-gray-500 bg-gray-50';
+
+                    return `
+                        <div class="border-l-4 ${colorClass} p-3 rounded">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <div class="font-medium">${error.error_type}</div>
+                                    <div class="text-sm text-gray-600">${error.message}</div>
+                                    <div class="text-xs text-gray-500 mt-1">${new Date(error.timestamp).toLocaleString()}</div>
+                                </div>
+                                <span class="text-xs font-medium uppercase ${error.severity === 'error' ? 'text-red-600' : error.severity === 'warning' ? 'text-yellow-600' : 'text-blue-600'}">${error.severity}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            })
+            .catch(error => {
+                console.error('Failed to load errors:', error);
+                container.innerHTML = '<div class="text-red-500">Failed to load errors</div>';
+            });
+    }
+
+    function loadErrorStats() {
+        const container = document.getElementById('error-stats');
+
+        authenticatedFetch('/admin/errors/stats')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Error stats data:', data);
+                container.innerHTML = `
+                    <div class="bg-white border rounded p-4">
+                        <div class="text-2xl font-bold">${data.total}</div>
+                        <div class="text-sm text-gray-500">Total Errors</div>
+                    </div>
+                    <div class="bg-white border rounded p-4">
+                        <div class="text-2xl font-bold">${Object.keys(data.by_severity).length}</div>
+                        <div class="text-sm text-gray-500">Severity Types</div>
+                    </div>
+                    <div class="bg-white border rounded p-4">
+                        <div class="text-2xl font-bold">${Object.keys(data.by_type).length}</div>
+                        <div class="text-sm text-gray-500">Error Types</div>
+                    </div>
+                `;
+            })
+            .catch(error => {
+                console.error('Failed to load error stats:', error);
+                container.innerHTML = '<div class="text-red-500">Failed to load error stats</div>';
+            });
+    }
+
+    function clearErrors() {
+        if (!confirm('Clear all errors?')) {
+            return;
+        }
+
+        authenticatedFetch('/admin/errors/clear', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                loadErrors();
+                loadErrorStats();
+            })
+            .catch(error => {
+                console.error('Failed to clear errors:', error);
+                alert('Failed to clear errors: ' + error.message);
+            });
+    }
+
+    // Cleanup function
+    function cleanupDiagnostics() {
+        if (diagnosticsInterval) {
+            clearInterval(diagnosticsInterval);
+            diagnosticsInterval = null;
+        }
+    }
+
+    // Execute immediately when script loads
+    loadDiagnostics();
+    // Refresh every 30 seconds
+    diagnosticsInterval = setInterval(loadDiagnostics, 30000);
+
+    // Cleanup when navigating away
+    window.addEventListener('beforeunload', cleanupDiagnostics);
+</script>
+{% endblock %}

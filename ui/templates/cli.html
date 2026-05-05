@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}CLI Commands{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <h2 class="text-2xl font-bold mb-6">CLI Commands</h2>
+
+    <!-- Server Status -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+        <h3 class="text-lg font-semibold mb-4">Server Status</h3>
+        <div id="server-status" class="space-y-2">
+            <div class="flex items-center justify-center py-4">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                <span class="ml-2 text-gray-500">Loading...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+        <h3 class="text-lg font-semibold mb-4">Quick Actions</h3>
+        <div class="flex gap-3 flex-wrap">
+            <button onclick="executeCommand('status')" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                Status
+            </button>
+            <button onclick="executeCommand('logs')" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+                View Logs
+            </button>
+            <button onclick="reloadConfig()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">
+                Reload Config
+            </button>
+            <button onclick="restartServer()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded">
+                Restart Server
+            </button>
+        </div>
+    </div>
+
+    <!-- Command Input -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+        <h3 class="text-lg font-semibold mb-4">Execute Command</h3>
+        <div class="space-y-4">
+            <div class="flex gap-2">
+                <input type="text" id="command-input" placeholder="Enter command..."
+                       class="flex-1 border rounded px-3 py-2 font-mono">
+                <button onclick="executeCustomCommand()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                    Execute
+                </button>
+            </div>
+            <div class="text-sm text-gray-500">
+                Available commands: status, logs, config, version
+            </div>
+        </div>
+    </div>
+
+    <!-- Command Output -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+        <h3 class="text-lg font-semibold mb-4">Command Output</h3>
+        <div id="command-output" class="bg-gray-900 text-gray-300 font-mono text-sm p-4 rounded-lg min-h-48 max-h-96 overflow-auto">
+            <div class="text-gray-500">Output will appear here...</div>
+        </div>
+    </div>
+
+    <!-- Command History -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h3 class="text-lg font-semibold mb-4">Command History</h3>
+        <div id="command-history" class="space-y-2 max-h-48 overflow-auto">
+            <div class="text-gray-500">No commands executed yet</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function loadServerStatus() {
+        console.log('Loading server status...');
+
+        authenticatedFetch('/admin/cli/status')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Server status data:', data);
+                displayServerStatus(data);
+            })
+            .catch(error => {
+                console.error('Failed to load server status:', error);
+                document.getElementById('server-status').innerHTML = '<div class="text-red-500">Failed to load server status</div>';
+            });
+    }
+
+    function displayServerStatus(data) {
+        const container = document.getElementById('server-status');
+        const statusColor = data.status === 'running' ? 'text-green-600' : 'text-red-600';
+
+        container.innerHTML = `
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                    <div class="text-sm text-gray-500">Status</div>
+                    <div class="font-medium ${statusColor} capitalize">${data.status}</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">PID</div>
+                    <div class="font-medium">${data.pid}</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Memory</div>
+                    <div class="font-medium">${data.memory_mb} MB</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">CPU</div>
+                    <div class="font-medium">${data.cpu_percent}%</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Threads</div>
+                    <div class="font-medium">${data.thread_count}</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Uptime</div>
+                    <div class="font-medium">${data.uptime}</div>
+                </div>
+            </div>
+        `;
+    }
+
+    function executeCommand(command) {
+        const output = document.getElementById('command-output');
+        output.innerHTML = '<div class="text-gray-400">Executing...</div>';
+
+        authenticatedFetch('/admin/cli/execute', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ command })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Command result:', data);
+            displayCommandOutput(data);
+            loadCommandHistory();
+            loadServerStatus();
+        })
+        .catch(error => {
+            console.error('Failed to execute command:', error);
+            output.innerHTML = '<div class="text-red-500">Failed to execute command: ' + error.message + '</div>';
+        });
+    }
+
+    function executeCustomCommand() {
+        const input = document.getElementById('command-input');
+        const command = input.value.trim();
+
+        if (!command) {
+            alert('Please enter a command');
+            return;
+        }
+
+        executeCommand(command);
+        input.value = '';
+    }
+
+    function displayCommandOutput(data) {
+        const output = document.getElementById('command-output');
+
+        let html = '';
+        if (data.output) {
+            html += '<div class="text-green-400">' + escapeHtml(data.output) + '</div>';
+        }
+        if (data.error) {
+            html += '<div class="text-red-400">' + escapeHtml(data.error) + '</div>';
+        }
+        if (data.exit_code !== undefined) {
+            html += '<div class="text-gray-500">Exit code: ' + data.exit_code + '</div>';
+        }
+
+        output.innerHTML = html || '<div class="text-gray-500">No output</div>';
+    }
+
+    function loadCommandHistory() {
+        authenticatedFetch('/admin/cli/history')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Command history:', data);
+                displayCommandHistory(data.history);
+            })
+            .catch(error => {
+                console.error('Failed to load command history:', error);
+            });
+    }
+
+    function displayCommandHistory(history) {
+        const container = document.getElementById('command-history');
+
+        if (!history || history.length === 0) {
+            container.innerHTML = '<div class="text-gray-500">No commands executed yet</div>';
+            return;
+        }
+
+        container.innerHTML = history.map(item => `
+            <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
+                <code class="text-sm">${escapeHtml(item.command)}</code>
+                <span class="text-xs text-gray-500">${new Date(item.timestamp).toLocaleString()}</span>
+            </div>
+        `).join('');
+    }
+
+    function reloadConfig() {
+        if (!confirm('Reload configuration?')) {
+            return;
+        }
+
+        authenticatedFetch('/admin/cli/reload', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                showToast(data.message, 'success');
+                loadServerStatus();
+            })
+            .catch(error => {
+                console.error('Failed to reload config:', error);
+                showToast('Failed to reload config: ' + error.message, 'error');
+            });
+    }
+
+    function restartServer() {
+        if (!confirm('Restart the server? This will interrupt all active connections.')) {
+            return;
+        }
+
+        authenticatedFetch('/admin/cli/restart', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                showToast(data.message, 'warning');
+            })
+            .catch(error => {
+                console.error('Failed to restart server:', error);
+                showToast('Failed to restart server: ' + error.message, 'error');
+            });
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Handle Enter key in command input
+    document.getElementById('command-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            executeCustomCommand();
+        }
+    });
+
+    // Execute immediately when script loads
+    loadServerStatus();
+    loadCommandHistory();
+</script>
+{% endblock %}

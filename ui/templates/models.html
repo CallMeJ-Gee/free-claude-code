@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}Models{% endblock %}
+
+{% block extra_head %}
+<style>
+    .model-card {
+        transition: all 0.2s ease;
+    }
+    .model-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    .model-card.selected {
+        border-color: #3b82f6;
+        background-color: #eff6ff;
+    }
+    .capability-badge {
+        font-size: 0.75rem;
+        padding: 2px 8px;
+        border-radius: 9999px;
+    }
+    .favorite-star {
+        cursor: pointer;
+        transition: color 0.2s;
+    }
+    .favorite-star.active {
+        color: #f59e0b;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <h2 class="text-2xl font-bold mb-6">Models</h2>
+
+    <!-- Search and Filters -->
+    <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                <input type="text" id="model-search" placeholder="Search models..."
+                       class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Provider</label>
+                <select id="provider-filter" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">All Providers</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Capability</label>
+                <select id="capability-filter" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">All Capabilities</option>
+                    <option value="thinking">Thinking</option>
+                    <option value="tools">Tools</option>
+                    <option value="vision">Vision</option>
+                    <option value="coding">Coding</option>
+                </select>
+            </div>
+        </div>
+        <div class="mt-4 flex items-center justify-between">
+            <div class="text-sm text-gray-500">
+                <span id="model-count">0</span> models found
+            </div>
+            <div class="flex gap-2">
+                <button id="compare-btn" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    Compare (<span id="compare-count">0</span>)
+                </button>
+                <button hx-get="/admin/models"
+                        hx-target="#model-list"
+                        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                    Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Model List -->
+    <div id="model-list" class="space-y-4">
+        <div class="flex items-center justify-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <span class="ml-3 text-gray-500">Loading models...</span>
+        </div>
+    </div>
+
+    <!-- Comparison Modal -->
+    <div id="compare-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">Model Comparison</h3>
+                <button onclick="closeCompareModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+            </div>
+            <div id="compare-content"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let allModels = [];
+    let selectedModels = new Set();
+    let favorites = new Set(JSON.parse(localStorage.getItem('modelFavorites') || '[]'));
+
+    // Load models function
+    function loadModels() {
+        console.log('Loading models...');
+        authenticatedFetch('/admin/models/list')
+            .then(response => {
+                console.log('Models response:', response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Models data:', data);
+                allModels = data.models || [];
+                populateProviderFilter();
+                filterAndRenderModels();
+            })
+            .catch(error => {
+                console.error('Failed to load models:', error);
+                document.getElementById('model-list').innerHTML = '<div class="text-red-500">Failed to load models: ' + error.message + '</div>';
+            });
+    }
+
+    // Populate provider filter dropdown
+    function populateProviderFilter() {
+        const providers = [...new Set(allModels.map(m => m.provider))];
+        const select = document.getElementById('provider-filter');
+        select.innerHTML = '<option value="">All Providers</option>' +
+            providers.map(p => `<option value="${p}">${p}</option>`).join('');
+    }
+
+    // Filter and render models
+    function filterAndRenderModels() {
+        const searchTerm = document.getElementById('model-search').value.toLowerCase();
+        const providerFilter = document.getElementById('provider-filter').value;
+        const capabilityFilter = document.getElementById('capability-filter').value;
+
+        const filtered = allModels.filter(model => {
+            const matchesSearch = model.full_id.toLowerCase().includes(searchTerm) ||
+                                 (model.display_name && model.display_name.toLowerCase().includes(searchTerm));
+            const matchesProvider = !providerFilter || model.provider === providerFilter;
+            const matchesCapability = !capabilityFilter ||
+                                     (model.capabilities && model.capabilities.includes(capabilityFilter));
+            return matchesSearch && matchesProvider && matchesCapability;
+        });
+
+        document.getElementById('model-count').textContent = filtered.length;
+        renderModels(filtered);
+    }
+
+    // Render models
+    function renderModels(models) {
+        const container = document.getElementById('model-list');
+        if (models.length === 0) {
+            container.innerHTML = '<div class="text-gray-500">No models match your filters.</div>';
+            return;
+        }
+
+        container.innerHTML = models.map(model => {
+            const isSelected = selectedModels.has(model.full_id);
+            const isFavorite = favorites.has(model.full_id);
+            const capabilities = model.capabilities || [];
+
+            return `
+                <div class="model-card bg-white border border-gray-200 rounded-lg p-4 shadow-sm ${isSelected ? 'selected' : ''}"
+                     data-model-id="${model.full_id}">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <a href="/admin/models/details?id=${encodeURIComponent(model.full_id)}"
+                                   class="font-medium text-lg text-blue-500 hover:underline">
+                                    ${model.full_id}
+                                </a>
+                                <span class="favorite-star ${isFavorite ? 'active' : ''}" onclick="toggleFavorite('${model.full_id}')">
+                                    ${isFavorite ? '★' : '☆'}
+                                </span>
+                            </div>
+                            <div class="text-sm text-gray-500 mt-1">
+                                Provider: ${model.provider}
+                            </div>
+                            ${capabilities.length > 0 ? `
+                                <div class="flex gap-2 mt-2">
+                                    ${capabilities.map(cap => `
+                                        <span class="capability-badge bg-blue-100 text-blue-800">${cap}</span>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="toggleSelection('${model.full_id}')"
+                                    class="px-3 py-1 rounded border ${isSelected ? 'bg-blue-500 text-white border-blue-500' : 'hover:bg-gray-50'}">
+                                ${isSelected ? '✓ Selected' : 'Select'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Toggle model selection
+    function toggleSelection(modelId) {
+        if (selectedModels.has(modelId)) {
+            selectedModels.delete(modelId);
+        } else {
+            selectedModels.add(modelId);
+        }
+        updateCompareButton();
+        filterAndRenderModels();
+    }
+
+    // Update compare button state
+    function updateCompareButton() {
+        const btn = document.getElementById('compare-btn');
+        const count = document.getElementById('compare-count');
+        count.textContent = selectedModels.size;
+        btn.disabled = selectedModels.size < 2;
+    }
+
+    // Toggle favorite
+    function toggleFavorite(modelId) {
+        if (favorites.has(modelId)) {
+            favorites.delete(modelId);
+        } else {
+            favorites.add(modelId);
+        }
+        localStorage.setItem('modelFavorites', JSON.stringify([...favorites]));
+        filterAndRenderModels();
+    }
+
+    // Show comparison modal
+    function showCompareModal() {
+        const models = allModels.filter(m => selectedModels.has(m.full_id));
+        const content = document.getElementById('compare-content');
+
+        content.innerHTML = `
+            <table class="w-full border-collapse">
+                <thead>
+                    <tr class="border-b">
+                        <th class="text-left p-2">Feature</th>
+                        ${models.map(m => `<th class="text-left p-2">${m.full_id}</th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="border-b">
+                        <td class="p-2 font-medium">Provider</td>
+                        ${models.map(m => `<td class="p-2">${m.provider}</td>`).join('')}
+                    </tr>
+                    <tr class="border-b">
+                        <td class="p-2 font-medium">Capabilities</td>
+                        ${models.map(m => `<td class="p-2">${(m.capabilities || []).join(', ') || 'N/A'}</td>`).join('')}
+                    </tr>
+                    <tr class="border-b">
+                        <td class="p-2 font-medium">Context Window</td>
+                        ${models.map(m => `<td class="p-2">${m.context_window || 'N/A'}</td>`).join('')}
+                    </tr>
+                    <tr class="border-b">
+                        <td class="p-2 font-medium">Max Tokens</td>
+                        ${models.map(m => `<td class="p-2">${m.max_tokens || 'N/A'}</td>`).join('')}
+                    </tr>
+                </tbody>
+            </table>
+        `;
+
+        document.getElementById('compare-modal').classList.remove('hidden');
+        document.getElementById('compare-modal').classList.add('flex');
+    }
+
+    // Close comparison modal
+    function closeCompareModal() {
+        document.getElementById('compare-modal').classList.add('hidden');
+        document.getElementById('compare-modal').classList.remove('flex');
+    }
+
+    // Event listeners
+    document.getElementById('model-search').addEventListener('input', filterAndRenderModels);
+    document.getElementById('provider-filter').addEventListener('change', filterAndRenderModels);
+    document.getElementById('capability-filter').addEventListener('change', filterAndRenderModels);
+    document.getElementById('compare-btn').addEventListener('click', showCompareModal);
+
+    // Load models on page load
+    loadModels();
+</script>
+{% endblock %}

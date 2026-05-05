@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Logs{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <h2 class="text-2xl font-bold mb-6">Logs</h2>
+
+    <div class="mb-4 flex gap-2">
+        <select id="log-level" class="border rounded px-3 py-2">
+            <option value="DEBUG">DEBUG</option>
+            <option value="INFO" selected>INFO</option>
+            <option value="WARNING">WARNING</option>
+            <option value="ERROR">ERROR</option>
+        </select>
+        <input type="text" id="log-filter" placeholder="Filter by request_id..." class="border rounded px-3 py-2 flex-1">
+        <button id="pause-logs" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
+            Pause
+        </button>
+        <button id="clear-logs" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded">
+            Clear
+        </button>
+    </div>
+
+    <div id="log-container" class="bg-gray-900 text-green-400 font-mono text-sm p-4 rounded-lg h-96 overflow-auto">
+        <div id="log-content" class="flex items-center justify-center py-8">
+            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-green-400"></div>
+            <span class="ml-3 text-gray-400">Connecting to logs...</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    let paused = false;
+    let pollInterval = null;
+    let lastLogCount = 0;
+
+    function pollLogs() {
+        if (paused) return;
+
+        const level = document.getElementById('log-level').value;
+        const filter = document.getElementById('log-filter').value;
+
+        console.log('Polling logs with level:', level, 'filter:', filter);
+
+        authenticatedFetch(`/admin/logs/stream?level=${level}&filter=${filter}`)
+            .then(response => {
+                console.log('Logs response:', response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.text();
+            })
+            .then(data => {
+                const container = document.getElementById('log-content');
+                const lines = data.split('\n').filter(line => line.trim());
+
+                // Only show new lines
+                if (lines.length > lastLogCount) {
+                    const newLines = lines.slice(lastLogCount);
+                    newLines.forEach(line => {
+                        const lineDiv = document.createElement('div');
+                        lineDiv.textContent = line.replace(/^data: /, '');
+                        container.appendChild(lineDiv);
+                    });
+                    lastLogCount = lines.length;
+                    document.getElementById('log-container').scrollTop = document.getElementById('log-container').scrollHeight;
+                }
+            })
+            .catch(error => {
+                console.error('Failed to poll logs:', error);
+                document.getElementById('log-content').textContent = 'Connection lost. Retrying...';
+            });
+    }
+
+    function startPolling() {
+        if (pollInterval) clearInterval(pollInterval);
+        pollInterval = setInterval(pollLogs, 5000); // Poll every 5 seconds
+        pollLogs(); // Initial load
+    }
+
+    function stopPolling() {
+        if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+        }
+    }
+
+    // Load logs function (called by base.html HTMX handler)
+    function loadLogs() {
+        console.log('Loading logs...');
+        // Reset state
+        lastLogCount = 0;
+        paused = false;
+        document.getElementById('pause-logs').textContent = 'Pause';
+        document.getElementById('log-content').textContent = 'Connecting to logs...';
+        // Start polling
+        startPolling();
+    }
+
+    // Cleanup function
+    function cleanupLogs() {
+        stopPolling();
+    }
+
+    document.getElementById('pause-logs').addEventListener('click', function() {
+        paused = !paused;
+        this.textContent = paused ? 'Resume' : 'Pause';
+        if (!paused) {
+            lastLogCount = 0; // Reset on resume
+            pollLogs();
+        }
+    });
+
+    document.getElementById('clear-logs').addEventListener('click', function() {
+        document.getElementById('log-content').textContent = '';
+        lastLogCount = 0;
+    });
+
+    document.getElementById('log-level').addEventListener('change', function() {
+        lastLogCount = 0;
+        document.getElementById('log-content').textContent = '';
+        pollLogs();
+    });
+
+    document.getElementById('log-filter').addEventListener('change', function() {
+        lastLogCount = 0;
+        document.getElementById('log-content').textContent = '';
+        pollLogs();
+    });
+
+    // Execute immediately when script loads (for HTMX navigation)
+    loadLogs();
+
+    // Cleanup when navigating away
+    window.addEventListener('beforeunload', cleanupLogs);
+</script>
+{% endblock %}

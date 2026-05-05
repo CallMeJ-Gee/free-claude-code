@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin{% endblock %} - Free Claude Code</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- HTMX for interactivity -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script>
+        // Configure HTMX to execute scripts in responses
+        htmx.config.allowScriptTags = true;
+        htmx.config.allowEval = true;
+    </script>
+    <style>
+        .nav-link.active {
+            background-color: rgba(59, 130, 246, 0.1);
+            color: rgb(59, 130, 246);
+            font-weight: 600;
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            min-width: 300px;
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            animation: slideIn 0.3s ease-out;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .toast-success {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .toast-error {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        .toast-warning {
+            background-color: #f59e0b;
+            color: white;
+        }
+
+        .toast-info {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
+        .toast.removing {
+            animation: slideOut 0.3s ease-out forwards;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-gray-900 text-white flex flex-col">
+            <div class="p-4 border-b border-gray-700">
+                <h1 class="text-xl font-bold">Free Claude Code</h1>
+                <p class="text-xs text-gray-400 mt-1">Admin Interface</p>
+            </div>
+            <nav class="flex-1 py-4">
+                <ul class="space-y-1">
+                    <li>
+                        <a href="/admin/welcome" class="nav-link px-4 py-2 block hover:bg-gray-800 transition-colors"
+                           hx-get="/admin/welcome" hx-target="#main-content" hx-push-url="true">
+                            Welcome
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/" class="nav-link px-4 py-2 block hover:bg-gray-800 transition-colors"
+                           hx-get="/admin/" hx-target="#main-content" hx-push-url="true">
+                            Dashboard
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/providers" class="nav-link px-4 py-2 block hover:bg-gray-800 transition-colors"
+                           hx-get="/admin/providers" hx-target="#main-content" hx-push-url="true">
+                            Providers
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/models" class="nav-link px-4 py-2 block hover:bg-gray-800 transition-colors"
+                           hx-get="/admin/models" hx-target="#main-content" hx-push-url="true">
+                            Models
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/routing" class="nav-link px-4 py-2 block hover:bg-gray-800 transition-colors"
+                           hx-get="/admin/routing" hx-target="#main-content" hx-push-url="true">
+                            Routing
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/settings" class="nav-link px-4 py-2 block hover:bg-gray-800 transition-colors"
+                           hx-get="/admin/settings" hx-target="#main-content" hx-push-url="true">
+                            Settings
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/cli" class="nav-link px-4 py-2 block hover:bg-gray-800 transition-colors"
+                           hx-get="/admin/cli" hx-target="#main-content" hx-push-url="true">
+                            CLI Commands
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/health" class="nav-link px-4 py-2 block hover:bg-gray-800 transition-colors"
+                           hx-get="/admin/health" hx-target="#main-content" hx-push-url="true">
+                            Health Monitoring
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/diagnostics" class="nav-link px-4 py-2 block hover:bg-gray-800 transition-colors"
+                           hx-get="/admin/diagnostics" hx-target="#main-content" hx-push-url="true">
+                            Diagnostics
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/logs" class="nav-link px-4 py-2 block hover:bg-gray-800 transition-colors"
+                           hx-get="/admin/logs" hx-target="#main-content" hx-push-url="true">
+                            Logs
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/system" class="nav-link px-4 py-2 block hover:bg-gray-800 transition-colors"
+                           hx-get="/admin/system" hx-target="#main-content" hx-push-url="true">
+                            System
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/docs" class="nav-link px-4 py-2 block hover:bg-gray-800 transition-colors"
+                           hx-get="/admin/docs" hx-target="#main-content" hx-push-url="true">
+                            Documentation
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            <div class="p-4 border-t border-gray-700">
+                <div class="flex justify-between items-center">
+                    <button onclick="showHelpModal()" class="text-sm text-gray-400 hover:text-white transition-colors">
+                        Help
+                    </button>
+                    <form action="/admin/logout" method="POST" class="inline">
+                        <button type="submit" class="text-sm text-gray-400 hover:text-white transition-colors">
+                            Logout ({{ username }})
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-auto bg-white">
+            <div id="main-content" class="p-8">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">Help & Keyboard Shortcuts</h3>
+                <button onclick="closeHelpModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <h4 class="font-semibold mb-2">Keyboard Shortcuts</h4>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div><kbd class="bg-gray-100 px-2 py-1 rounded">?</kbd> - Show this help</div>
+                        <div><kbd class="bg-gray-100 px-2 py-1 rounded">Esc</kbd> - Close modals</div>
+                        <div><kbd class="bg-gray-100 px-2 py-1 rounded">Ctrl+K</kbd> - Focus search</div>
+                        <div><kbd class="bg-gray-100 px-2 py-1 rounded">Ctrl+R</kbd> - Refresh current page</div>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-2">Quick Links</h4>
+                    <ul class="list-disc list-inside space-y-1 text-sm">
+                        <li><a href="/admin/docs" class="text-blue-500 hover:underline">Documentation</a> - Comprehensive guides and reference</li>
+                        <li><a href="/admin/welcome" class="text-blue-500 hover:underline">Getting Started</a> - Setup and onboarding guide</li>
+                        <li><a href="/admin/providers" class="text-blue-500 hover:underline">Providers</a> - Configure API providers</li>
+                        <li><a href="/admin/models" class="text-blue-500 hover:underline">Models</a> - Browse and select models</li>
+                        <li><a href="/admin/settings" class="text-blue-500 hover:underline">Settings</a> - Configure proxy settings</li>
+                        <li><a href="/admin/diagnostics" class="text-blue-500 hover:underline">Diagnostics</a> - Troubleshoot issues</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-2">Common Tasks</h4>
+                    <ul class="list-disc list-inside space-y-1 text-sm">
+                        <li>Add a provider: Go to Providers page and click "Add Provider"</li>
+                        <li>Select a model: Go to Models page and use search/filter</li>
+                        <li>View logs: Go to Logs page to see server activity</li>
+                        <li>Check health: Go to Health Monitoring for system status</li>
+                        <li>Run commands: Go to CLI Commands for server management</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simple client-side cache
+        const cache = new Map();
+        const DEFAULT_CACHE_TTL = 60000; // 60 seconds
+        const LOGS_CACHE_TTL = 10000; // 10 seconds for logs
+
+        // Get TTL for specific endpoint
+        function getCacheTtl(url) {
+            if (url.includes('/logs/')) {
+                return LOGS_CACHE_TTL;
+            }
+            return DEFAULT_CACHE_TTL;
+        }
+
+        // Helper function for authenticated fetch requests with caching
+        function authenticatedFetch(url, options = {}) {
+            // Check cache for GET requests
+            if (!options.method || options.method === 'GET') {
+                const cached = cache.get(url);
+                const ttl = getCacheTtl(url);
+                if (cached && Date.now() - cached.timestamp < ttl) {
+                    console.log('Cache hit for:', url);
+                    return Promise.resolve(new Response(JSON.stringify(cached.data), {
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' }
+                    }));
+                }
+            }
+
+            // Get credentials from current URL and encode them
+            const currentUrl = new URL(window.location.href);
+            const username = currentUrl.username || 'admin';
+            const password = currentUrl.password || 'admin';
+            const auth = btoa(`${username}:${password}`);
+
+            options.headers = {
+                ...options.headers,
+                'Authorization': `Basic ${auth}`
+            };
+
+            return fetch(url, options).then(response => {
+                // Cache successful GET responses
+                if (response.ok && (!options.method || options.method === 'GET')) {
+                    response.clone().json().then(data => {
+                        cache.set(url, { data, timestamp: Date.now() });
+                    });
+                }
+                return response;
+            });
+        }
+
+        // Clear cache (call this when data changes)
+        function clearCache() {
+            cache.clear();
+            console.log('Cache cleared');
+        }
+
+        // Highlight active nav link based on current URL
+        function updateActiveNav() {
+            const currentPath = window.location.pathname;
+            document.querySelectorAll('.nav-link').forEach(link => {
+                const href = link.getAttribute('href');
+                if (currentPath === href || (href !== '/admin/' && currentPath.startsWith(href))) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', updateActiveNav);
+
+        // Toast notification system
+        function showToast(message, type = 'info', duration = 5000) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <span>${message}</span>
+                <button onclick="dismissToast(this.parentElement)" class="ml-4 text-white hover:text-gray-200">&times;</button>
+            `;
+            container.appendChild(toast);
+
+            // Auto-dismiss after duration
+            if (duration > 0) {
+                setTimeout(() => {
+                    dismissToast(toast);
+                }, duration);
+            }
+        }
+
+        function dismissToast(toast) {
+            toast.classList.add('removing');
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.parentElement.removeChild(toast);
+                }
+            }, 300);
+        }
+
+        // Override alert to use toast notifications
+        const originalAlert = window.alert;
+        window.alert = function(message) {
+            showToast(message, 'info');
+        };
+
+        // Help modal functions
+        function showHelpModal() {
+            document.getElementById('help-modal').classList.remove('hidden');
+            document.getElementById('help-modal').classList.add('flex');
+        }
+
+        function closeHelpModal() {
+            document.getElementById('help-modal').classList.add('hidden');
+            document.getElementById('help-modal').classList.remove('flex');
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // ? key to show help (when not typing in input)
+            if (e.key === '?' && !e.target.matches('input, textarea')) {
+                e.preventDefault();
+                showHelpModal();
+            }
+            // Escape to close modals
+            if (e.key === 'Escape') {
+                closeHelpModal();
+                const compareModal = document.getElementById('compare-modal');
+                if (compareModal) {
+                    compareModal.classList.add('hidden');
+                    compareModal.classList.remove('flex');
+                }
+            }
+            // Ctrl+K to focus search
+            if (e.ctrlKey && e.key === 'k') {
+                e.preventDefault();
+                const searchInput = document.getElementById('model-search');
+                if (searchInput) {
+                    searchInput.focus();
+                }
+            }
+            // Ctrl+R to refresh (prevent default and use HTMX refresh)
+            if (e.ctrlKey && e.key === 'r') {
+                e.preventDefault();
+                window.location.reload();
+            }
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

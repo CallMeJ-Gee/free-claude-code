@@ -3,6 +3,7 @@
 import traceback
 from contextlib import asynccontextmanager
 from typing import Any
+import time
 
 from fastapi import FastAPI, Request
 from fastapi.exception_handlers import request_validation_exception_handler
@@ -96,6 +97,11 @@ def create_app(*, lifespan_enabled: bool = True) -> FastAPI:
 
     # Register routes
     app.include_router(router)
+    if settings.enable_admin_ui:
+        from ui.routes import router as admin_router
+        from fastapi import Depends
+        from ui.auth import get_current_admin_user
+        app.include_router(admin_router, dependencies=[Depends(get_current_admin_user)])
 
     # Exception handlers
     @app.exception_handler(RequestValidationError)

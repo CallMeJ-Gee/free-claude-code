@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Model Details{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <div class="mb-4">
+        <a href="/admin/models" class="text-blue-500 hover:underline">&larr; Back to Models</a>
+    </div>
+
+    <h2 class="text-2xl font-bold mb-6">Model Details</h2>
+
+    <div id="model-details">
+        <div class="flex items-center justify-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <span class="ml-3 text-gray-500">Loading model details...</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Get model ID from URL query parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const modelId = urlParams.get('id');
+
+    if (!modelId) {
+        document.getElementById('model-details').innerHTML = '<div class="text-red-500">No model ID specified</div>';
+    } else {
+        loadModelDetails(modelId);
+    }
+
+    function loadModelDetails(modelId) {
+        authenticatedFetch('/admin/models/list')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                const model = data.models.find(m => m.full_id === modelId);
+                if (!model) {
+                    document.getElementById('model-details').innerHTML = '<div class="text-red-500">Model not found</div>';
+                    return;
+                }
+                renderModelDetails(model);
+            })
+            .catch(error => {
+                console.error('Failed to load model details:', error);
+                document.getElementById('model-details').innerHTML = '<div class="text-red-500">Failed to load model details: ' + error.message + '</div>';
+            });
+    }
+
+    function renderModelDetails(model) {
+        const capabilities = model.capabilities || [];
+        const favorites = new Set(JSON.parse(localStorage.getItem('modelFavorites') || '[]'));
+        const isFavorite = favorites.has(model.full_id);
+
+        document.getElementById('model-details').innerHTML = `
+            <div class="space-y-6">
+                <!-- Model Header -->
+                <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="text-xl font-bold">${model.full_id}</h3>
+                            <p class="text-gray-500 mt-1">Provider: ${model.provider}</p>
+                        </div>
+                        <button onclick="toggleFavorite('${model.full_id}')" class="text-2xl ${isFavorite ? 'text-yellow-500' : 'text-gray-300'} hover:text-yellow-500">
+                            ${isFavorite ? '★' : '☆'}
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Capabilities -->
+                <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                    <h4 class="text-lg font-semibold mb-4">Capabilities</h4>
+                    ${capabilities.length > 0 ? `
+                        <div class="flex flex-wrap gap-2">
+                            ${capabilities.map(cap => `
+                                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">${cap}</span>
+                            `).join('')}
+                        </div>
+                    ` : '<p class="text-gray-500">No capabilities information available</p>'}
+                </div>
+
+                <!-- Model Specifications -->
+                <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                    <h4 class="text-lg font-semibold mb-4">Specifications</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <span class="text-gray-500">Context Window:</span>
+                            <span class="ml-2 font-medium">${model.context_window || 'N/A'}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Max Tokens:</span>
+                            <span class="ml-2 font-medium">${model.max_tokens || 'N/A'}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Model ID:</span>
+                            <span class="ml-2 font-medium">${model.full_id}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Provider:</span>
+                            <span class="ml-2 font-medium">${model.provider}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recommended Use Cases -->
+                <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                    <h4 class="text-lg font-semibold mb-4">Recommended Use Cases</h4>
+                    <ul class="list-disc list-inside space-y-2 text-gray-600">
+                        ${getRecommendedUseCases(model)}
+                    </ul>
+                </div>
+
+                <!-- Configuration -->
+                <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                    <h4 class="text-lg font-semibold mb-4">Configuration</h4>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Environment Variable</label>
+                            <div class="flex gap-2">
+                                <code class="flex-1 bg-gray-100 px-3 py-2 rounded text-sm">MODEL=${model.full_id}</code>
+                                <button onclick="copyToClipboard('MODEL=${model.full_id}')" class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm">
+                                    Copy
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Claude Code Command</label>
+                            <div class="flex gap-2">
+                                <code class="flex-1 bg-gray-100 px-3 py-2 rounded text-sm">MODEL="${model.full_id}" claude</code>
+                                <button onclick="copyToClipboard('MODEL="${model.full_id}" claude')" class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm">
+                                    Copy
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function getRecommendedUseCases(model) {
+        const capabilities = model.capabilities || [];
+        const useCases = [];
+
+        if (capabilities.includes('thinking')) {
+            useCases.push('Complex reasoning and analysis tasks');
+            useCases.push('Multi-step problem solving');
+        }
+        if (capabilities.includes('tools')) {
+            useCases.push('Tasks requiring tool use and function calling');
+            useCases.push('API integration and automation');
+        }
+        if (capabilities.includes('vision')) {
+            useCases.push('Image analysis and understanding');
+            useCases.push('Multimodal tasks');
+        }
+        if (capabilities.includes('coding')) {
+            useCases.push('Code generation and review');
+            useCases.push('Debugging and refactoring');
+        }
+
+        if (useCases.length === 0) {
+            useCases.push('General purpose text generation and analysis');
+        }
+
+        return useCases.map(uc => `<li>${uc}</li>`).join('');
+    }
+
+    function toggleFavorite(modelId) {
+        const favorites = new Set(JSON.parse(localStorage.getItem('modelFavorites') || '[]'));
+        if (favorites.has(modelId)) {
+            favorites.delete(modelId);
+        } else {
+            favorites.add(modelId);
+        }
+        localStorage.setItem('modelFavorites', JSON.stringify([...favorites]));
+        loadModelDetails(modelId);
+    }
+
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('Copied to clipboard', 'success');
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            showToast('Failed to copy', 'error');
+        });
+    }
+</script>
+{% endblock %}

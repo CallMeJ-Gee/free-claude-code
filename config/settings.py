@@ -293,6 +293,11 @@ class Settings(BaseSettings):
         default="", validation_alias="ANTHROPIC_AUTH_TOKEN"
     )
 
+    # ==================== Admin UI ====================
+    enable_admin_ui: bool = Field(default=False, validation_alias="ENABLE_ADMIN_UI")
+    admin_user: str = Field(default="admin", validation_alias="ADMIN_USER")
+    admin_password_hash: str = Field(default="", validation_alias="ADMIN_PASSWORD_HASH")
+
     @model_validator(mode="before")
     @classmethod
     def reject_removed_env_vars(cls, data: Any) -> Any:

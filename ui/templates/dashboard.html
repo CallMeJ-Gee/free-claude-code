@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <h2 class="text-2xl font-bold mb-6">Dashboard</h2>
+
+    <!-- Welcome banner -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
+        <div class="flex items-center">
+            <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 001-1V9a1 1 0 00-1-1H9a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                </svg>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-blue-800">Welcome, {{ username }}!</h3>
+                <div class="mt-2 text-sm text-blue-700">
+                    <p>This is the admin interface for Free Claude Code. Use the sidebar to navigate.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+            <div class="text-gray-500 text-sm font-medium">Proxy Version</div>
+            <div class="text-2xl font-bold mt-2">2.0.0</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+            <div class="text-gray-500 text-sm font-medium">Uptime</div>
+            <div class="text-2xl font-bold mt-2" id="uptime">--</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+            <div class="text-gray-500 text-sm font-medium">Configured Providers</div>
+            <div class="text-2xl font-bold mt-2" id="provider-count">--</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+            <div class="text-gray-500 text-sm font-medium">Discovered Models</div>
+            <div class="text-2xl font-bold mt-2" id="model-count">--</div>
+        </div>
+    </div>
+
+    <!-- Provider Health -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-8">
+        <h3 class="text-lg font-semibold mb-4">Provider Health</h3>
+        <div id="provider-health" class="space-y-3">
+            <div class="flex items-center justify-center py-4">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                <span class="ml-2 text-gray-500">Loading...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Errors -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-8">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">Recent Errors</h3>
+            <button hx-get="/admin/logs/recent?level=ERROR&limit=10"
+                    hx-target="#recent-errors"
+                    class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">
+                Refresh
+            </button>
+        </div>
+        <div id="recent-errors">
+            <div class="flex items-center justify-center py-4">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                <span class="ml-2 text-gray-500">Loading...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let dashboardInterval = null;
+
+    // Fetch dashboard data
+    async function loadDashboard() {
+        try {
+            console.log('Loading dashboard data...');
+
+            // Make all requests in parallel
+            const [healthRes, statsRes, errorsRes] = await Promise.all([
+                authenticatedFetch('/admin/system/status'),
+                authenticatedFetch('/admin/models/list'),
+                authenticatedFetch('/admin/logs/recent?level=ERROR&limit=10')
+            ]);
+
+            console.log('Health response:', healthRes.status);
+            console.log('Stats response:', statsRes.status);
+            console.log('Errors response:', errorsRes.status);
+
+            // Process health response
+            if (healthRes.ok) {
+                const health = await healthRes.json();
+                console.log('Health data:', health);
+
+                // Update uptime
+                document.getElementById('uptime').textContent = health.uptime || '--';
+
+                // Update provider count
+                document.getElementById('provider-count').textContent = health.total_providers || 0;
+
+                // Update provider health UI
+                const container = document.getElementById('provider-health');
+                if (health.providers && health.providers.length > 0) {
+                    container.innerHTML = health.providers.map(p => `
+                        <div class="flex items-center justify-between p-3 border rounded">
+                            <div class="flex items-center">
+                                <div class="w-3 h-3 rounded-full mr-3 ${p.healthy ? 'bg-green-500' : 'bg-red-500'}"></div>
+                                <div>
+                                    <div class="font-medium">${p.id}</div>
+                                    <div class="text-sm text-gray-500">Last check: ${p.last_check || 'never'}</div>
+                                </div>
+                            </div>
+                            <div class="text-sm">
+                                Errors: ${p.error_count || 0}
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<div class="text-gray-500">No providers configured</div>';
+                }
+            } else {
+                console.error('Health request failed:', healthRes.status, healthRes.statusText);
+                document.getElementById('provider-health').innerHTML = '<div class="text-red-500">Failed to load provider health</div>';
+            }
+
+            // Process stats response
+            if (statsRes.ok) {
+                const stats = await statsRes.json();
+                console.log('Stats data:', stats);
+                document.getElementById('model-count').textContent = stats.total || 0;
+            } else {
+                console.error('Stats request failed:', statsRes.status, statsRes.statusText);
+            }
+
+            // Process errors response
+            if (errorsRes.ok) {
+                const errorsHtml = await errorsRes.text();
+                document.getElementById('recent-errors').innerHTML = errorsHtml;
+            } else {
+                console.error('Errors request failed:', errorsRes.status, errorsRes.statusText);
+            }
+
+        } catch (error) {
+            console.error('Failed to load dashboard:', error);
+            document.getElementById('provider-health').innerHTML = '<div class="text-red-500">Error loading dashboard: ' + error.message + '</div>';
+        }
+    }
+
+    // Refresh dashboard (clears cache and reloads)
+    function refreshDashboard() {
+        clearCache();
+        loadDashboard();
+    }
+
+    // Cleanup function
+    function cleanupDashboard() {
+        if (dashboardInterval) {
+            clearInterval(dashboardInterval);
+            dashboardInterval = null;
+        }
+    }
+
+    // Execute immediately when script loads (for HTMX navigation)
+    loadDashboard();
+    // Refresh every 60 seconds
+    dashboardInterval = setInterval(loadDashboard, 60000);
+
+    // Cleanup when navigating away
+    window.addEventListener('beforeunload', cleanupDashboard);
+</script>
+{% endblock %}

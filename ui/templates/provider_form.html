@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Add Provider{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <h2 class="text-2xl font-bold mb-6">Add Provider</h2>
+
+    <form id="provider-form">
+        <div class="space-y-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Provider Type</label>
+                <select name="provider_type" id="provider_type" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    <option value="">-- Select --</option>
+                    <option value="nvidia_nim">NVIDIA NIM</option>
+                    <option value="open_router">OpenRouter</option>
+                    <option value="deepseek">DeepSeek</option>
+                    <option value="lmstudio">LM Studio</option>
+                    <option value="llamacpp">llama.cpp</option>
+                    <option value="ollama">Ollama</option>
+                </select>
+            </div>
+
+            <div id="api_key_field">
+                <label class="block text-sm font-medium text-gray-700">API Key</label>
+                <input type="password" name="api_key" id="api_key" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                <p class="text-xs text-gray-500 mt-1">Required for NVIDIA NIM, OpenRouter, and DeepSeek</p>
+            </div>
+
+            <div id="base_url_field">
+                <label class="block text-sm font-medium text-gray-700">Base URL (optional)</label>
+                <input type="url" name="base_url" id="base_url" placeholder="Default will be used" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                <p class="text-xs text-gray-500 mt-1">Required for LM Studio, llama.cpp, and Ollama</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Proxy URL (optional)</label>
+                <input type="url" name="proxy" id="proxy" placeholder="No proxy" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+            </div>
+
+            <div class="flex gap-4">
+                <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded">
+                    Save Provider
+                </button>
+                <button type="button" onclick="window.location.href='/admin/providers'"
+                        class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Provider type configuration
+    const providerConfig = {
+        nvidia_nim: { requires_api_key: true, requires_base_url: false },
+        open_router: { requires_api_key: true, requires_base_url: false },
+        deepseek: { requires_api_key: true, requires_base_url: false },
+        lmstudio: { requires_api_key: false, requires_base_url: true },
+        llamacpp: { requires_api_key: false, requires_base_url: true },
+        ollama: { requires_api_key: false, requires_base_url: true },
+    };
+
+    // Update form fields based on provider type
+    document.getElementById('provider_type').addEventListener('change', function() {
+        const providerType = this.value;
+        const config = providerConfig[providerType] || { requires_api_key: false, requires_base_url: false };
+
+        const apiKeyField = document.getElementById('api_key_field');
+        const apiKeyInput = document.getElementById('api_key');
+        const baseUrlField = document.getElementById('base_url_field');
+        const baseUrlInput = document.getElementById('base_url');
+
+        if (config.requires_api_key) {
+            apiKeyField.classList.remove('hidden');
+            apiKeyInput.required = true;
+        } else {
+            apiKeyField.classList.add('hidden');
+            apiKeyInput.required = false;
+            apiKeyInput.value = '';
+        }
+
+        if (config.requires_base_url) {
+            baseUrlField.classList.remove('hidden');
+            baseUrlInput.required = true;
+        } else {
+            baseUrlField.classList.add('hidden');
+            baseUrlInput.required = false;
+            baseUrlInput.value = '';
+        }
+    });
+
+    // Initialize form state
+    document.getElementById('provider_type').dispatchEvent(new Event('change'));
+
+    document.getElementById('provider-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const provider = {};
+        formData.forEach((value, key) => {
+            provider[key] = value;
+        });
+
+        authenticatedFetch('/admin/providers', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(provider)
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.detail || 'Failed to save provider');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Provider saved successfully!');
+            window.location.href = '/admin/providers';
+        })
+        .catch(error => {
+            console.error('Failed to save provider:', error);
+            alert('Failed to save provider: ' + error.message);
+        });
+    });
+</script>
+{% endblock %}

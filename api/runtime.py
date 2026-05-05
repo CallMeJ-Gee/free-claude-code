@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -102,9 +103,13 @@ class AppRuntime:
         logger.info("Starting Claude Code Proxy...")
         self._provider_registry = ProviderRegistry()
         self.app.state.provider_registry = self._provider_registry
+        self.app.state.start_time = time.time()
         try:
             warn_if_process_auth_token(self.settings)
-            await self._provider_registry.validate_configured_models(self.settings)
+            try:
+                await self._provider_registry.validate_configured_models(self.settings)
+            except Exception as e:
+                logger.warning("Provider validation failed (non-fatal): {}", e)
             self._provider_registry.start_model_list_refresh(self.settings)
             await self._start_messaging_if_configured()
             self._publish_state()

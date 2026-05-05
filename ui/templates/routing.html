@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Routing{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <h2 class="text-2xl font-bold mb-6">Model Routing</h2>
+
+    <form id="routing-form" class="space-y-6">
+        <!-- Default Model -->
+        <div class="bg-white border border-gray-200 rounded-lg p-6">
+            <h3 class="text-lg font-semibold mb-4">Default Model (Fallback)</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Model</label>
+                    <select name="model" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <option value="">-- Select a model --</option>
+                        {% for model in models %}
+                        <option value="{{ model.full_id }}" {% if model.full_id == settings.model %}selected{% endif %}>
+                            {{ model.full_id }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <label class="flex items-center">
+                    <input type="checkbox" name="enable_model_thinking" {% if settings.enable_model_thinking %}checked{% endif %}>
+                    <span class="ml-2 text-sm text-gray-700">Enable thinking</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Tier Overrides -->
+        <div class="bg-white border border-gray-200 rounded-lg p-6">
+            <h3 class="text-lg font-semibold mb-4">Tier Overrides</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Opus</label>
+                    <select name="model_opus" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <option value="">-- Use default --</option>
+                        {% for model in models %}
+                        <option value="{{ model.full_id }}" {% if model.full_id == settings.model_opus %}selected{% endif %}>
+                            {{ model.full_id }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <label class="flex items-center">
+                    <input type="checkbox" name="enable_opus_thinking" {% if settings.enable_opus_thinking %}checked{% endif %}>
+                    <span class="ml-2 text-sm text-gray-700">Enable thinking</span>
+                </label>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Sonnet</label>
+                    <select name="model_sonnet" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <option value="">-- Use default --</option>
+                        {% for model in models %}
+                        <option value="{{ model.full_id }}" {% if model.full_id == settings.model_sonnet %}selected{% endif %}>
+                            {{ model.full_id }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <label class="flex items-center">
+                    <input type="checkbox" name="enable_sonnet_thinking" {% if settings.enable_sonnet_thinking %}checked{% endif %}>
+                    <span class="ml-2 text-sm text-gray-700">Enable thinking</span>
+                </label>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Haiku</label>
+                    <select name="model_haiku" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <option value="">-- Use default --</option>
+                        {% for model in models %}
+                        <option value="{{ model.full_id }}" {% if model.full_id == settings.model_haiku %}selected{% endif %}>
+                            {{ model.full_id }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <label class="flex items-center">
+                    <input type="checkbox" name="enable_haiku_thinking" {% if settings.enable_haiku_thinking %}checked{% endif %}>
+                    <span class="ml-2 text-sm text-gray-700">Enable thinking</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="mt-6">
+            <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                Save Routing
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    document.getElementById('routing-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const routing = {};
+        formData.forEach((value, key) => {
+            if (this.querySelector(`[name="${key}"]`).type === 'checkbox') {
+                routing[key] = this.querySelector(`[name="${key}"]`).checked;
+            } else {
+                routing[key] = value;
+            }
+        });
+
+        // Disable submit button
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving...';
+
+        authenticatedFetch('/admin/routing', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(routing)
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.detail || 'Failed to save routing configuration');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Routing configuration saved successfully!');
+            // Clear cache to force reload
+            clearCache();
+        })
+        .catch(error => {
+            console.error('Failed to save routing:', error);
+            alert('Failed to save routing configuration: ' + error.message);
+        })
+        .finally(() => {
+            // Re-enable submit button
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Save Routing';
+        });
+    });
+</script>
+{% endblock %}

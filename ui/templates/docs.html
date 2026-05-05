@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block title %}Documentation{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <h2 class="text-2xl font-bold mb-6">Documentation</h2>
+
+    <!-- Documentation Navigation -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+        <h3 class="text-lg font-semibold mb-4">Quick Links</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <a href="#getting-started" class="block p-4 border rounded hover:border-blue-500 hover:bg-blue-50">
+                <div class="font-semibold mb-2">🚀 Getting Started</div>
+                <div class="text-sm text-gray-600">Quick setup guide for new users</div>
+            </a>
+            <a href="#providers" class="block p-4 border rounded hover:border-blue-500 hover:bg-blue-50">
+                <div class="font-semibold mb-2">🔌 Providers</div>
+                <div class="text-sm text-gray-600">Configure and use different providers</div>
+            </a>
+            <a href="#configuration" class="block p-4 border rounded hover:border-blue-500 hover:bg-blue-50">
+                <div class="font-semibold mb-2">⚙️ Configuration</div>
+                <div class="text-sm text-gray-600">Settings and configuration reference</div>
+            </a>
+            <a href="#troubleshooting" class="block p-4 border rounded hover:border-blue-500 hover:bg-blue-50">
+                <div class="font-semibold mb-2">🔧 Troubleshooting</div>
+                <div class="text-sm text-gray-600">Common issues and solutions</div>
+            </a>
+            <a href="#faq" class="block p-4 border rounded hover:border-blue-500 hover:bg-blue-50">
+                <div class="font-semibold mb-2">❓ FAQ</div>
+                <div class="text-sm text-gray-600">Frequently asked questions</div>
+            </a>
+            <a href="#api" class="block p-4 border rounded hover:border-blue-500 hover:bg-blue-50">
+                <div class="font-semibold mb-2">📡 API Reference</div>
+                <div class="text-sm text-gray-600">API endpoints and usage</div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Getting Started -->
+    <section id="getting-started" class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+        <h3 class="text-lg font-semibold mb-4">Getting Started</h3>
+        <div class="space-y-4">
+            <div>
+                <h4 class="font-medium mb-2">1. Install Requirements</h4>
+                <p class="text-sm text-gray-600 mb-2">Install Claude Code and the required dependencies:</p>
+                <pre class="bg-gray-900 text-gray-300 p-4 rounded text-sm overflow-x-auto"><code>curl -LsSf https://astral.sh/uv/install.sh | sh
+uv self update
+uv python install 3.14</code></pre>
+            </div>
+            <div>
+                <h4 class="font-medium mb-2">2. Clone and Configure</h4>
+                <p class="text-sm text-gray-600 mb-2">Clone the repository and configure your environment:</p>
+                <pre class="bg-gray-900 text-gray-300 p-4 rounded text-sm overflow-x-auto"><code>git clone https://github.com/Alishahryar1/free-claude-code.git
+cd free-claude-code
+cp .env.example .env</code></pre>
+            </div>
+            <div>
+                <h4 class="font-medium mb-2">3. Configure a Provider</h4>
+                <p class="text-sm text-gray-600 mb-2">Edit <code>.env</code> and add your provider credentials:</p>
+                <pre class="bg-gray-900 text-gray-300 p-4 rounded text-sm overflow-x-auto"><code>NVIDIA_NIM_API_KEY="nvapi-your-key"
+MODEL="nvidia_nim/z-ai/glm4.7"
+ANTHROPIC_AUTH_TOKEN="freecc"</code></pre>
+            </div>
+            <div>
+                <h4 class="font-medium mb-2">4. Start the Proxy</h4>
+                <p class="text-sm text-gray-600 mb-2">Start the proxy server:</p>
+                <pre class="bg-gray-900 text-gray-300 p-4 rounded text-sm overflow-x-auto"><code>uv run uvicorn server:app --host 0.0.0.0 --port 8082</code></pre>
+            </div>
+            <div>
+                <h4 class="font-medium mb-2">5. Run Claude Code</h4>
+                <p class="text-sm text-gray-600 mb-2">Run Claude Code with the proxy:</p>
+                <pre class="bg-gray-900 text-gray-300 p-4 rounded text-sm overflow-x-auto"><code>ANTHROPIC_AUTH_TOKEN="freecc" ANTHROPIC_BASE_URL="http://localhost:8082" claude</code></pre>
+            </div>
+        </div>
+    </section>
+
+    <!-- Providers -->
+    <section id="providers" class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+        <h3 class="text-lg font-semibold mb-4">Providers</h3>
+        <div class="space-y-6">
+            <div>
+                <h4 class="font-medium mb-2">NVIDIA NIM</h4>
+                <p class="text-sm text-gray-600 mb-2">High-quality hosted models with excellent performance.</p>
+                <ul class="list-disc list-inside text-sm text-gray-600 mb-2">
+                    <li>Get API key at <a href="https://build.nvidia.com/settings/api-keys" target="_blank" class="text-blue-500 hover:underline">build.nvidia.com/settings/api-keys</a></li>
+                    <li>Popular models: nvidia_nim/z-ai/glm4.7, nvidia_nim/z-ai/glm5</li>
+                    <li>Best for: Production use, high-quality responses</li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-medium mb-2">OpenRouter</h4>
+                <p class="text-sm text-gray-600 mb-2">Access to many models including free options.</p>
+                <ul class="list-disc list-inside text-sm text-gray-600 mb-2">
+                    <li>Get API key at <a href="https://openrouter.ai/keys" target="_blank" class="text-blue-500 hover:underline">openrouter.ai/keys</a></li>
+                    <li>Free models: open_router/stepfun/step-3.5-flash:free</li>
+                    <li>Best for: Testing, personal projects, cost savings</li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-medium mb-2">DeepSeek</h4>
+                <p class="text-sm text-gray-600 mb-2">Affordable high-quality models with Anthropic-compatible API.</p>
+                <ul class="list-disc list-inside text-sm text-gray-600 mb-2">
+                    <li>Get API key at <a href="https://platform.deepseek.com/api_keys" target="_blank" class="text-blue-500 hover:underline">platform.deepseek.com/api_keys</a></li>
+                    <li>Popular models: deepseek/deepseek-chat, deepseek/deepseek-coder</li>
+                    <li>Best for: Coding tasks, affordable production use</li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-medium mb-2">Local Providers (LM Studio, llama.cpp, Ollama)</h4>
+                <p class="text-sm text-gray-600 mb-2">Run models locally for privacy and offline use.</p>
+                <ul class="list-disc list-inside text-sm text-gray-600 mb-2">
+                    <li>No API key required</li>
+                    <li>Requires local hardware with sufficient resources</li>
+                    <li>Best for: Privacy, offline use, cost savings</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- Configuration -->
+    <section id="configuration" class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+        <h3 class="text-lg font-semibold mb-4">Configuration</h3>
+        <div class="space-y-4">
+            <div>
+                <h4 class="font-medium mb-2">Model Routing</h4>
+                <p class="text-sm text-gray-600 mb-2">Configure different models for different tiers:</p>
+                <pre class="bg-gray-900 text-gray-300 p-4 rounded text-sm overflow-x-auto"><code>MODEL="nvidia_nim/z-ai/glm4.7"           # Default model
+MODEL_OPUS="nvidia_nim/z-ai/glm5"      # Opus tier
+MODEL_SONNET="open_router/..."        # Sonnet tier
+MODEL_HAIKU="lmstudio/..."            # Haiku tier</code></pre>
+            </div>
+            <div>
+                <h4 class="font-medium mb-2">Rate Limiting</h4>
+                <p class="text-sm text-gray-600 mb-2">Control request rate to avoid hitting provider limits:</p>
+                <pre class="bg-gray-900 text-gray-300 p-4 rounded text-sm overflow-x-auto"><code>PROVIDER_RATE_LIMIT=1              # Requests per window
+PROVIDER_RATE_WINDOW=3             # Window in seconds
+PROVIDER_MAX_CONCURRENCY=5         # Max concurrent requests</code></pre>
+            </div>
+            <div>
+                <h4 class="font-medium mb-2">Timeouts</h4>
+                <p class="text-sm text-gray-600 mb-2">Configure timeout values for provider requests:</p>
+                <pre class="bg-gray-900 text-gray-300 p-4 rounded text-sm overflow-x-auto"><code>HTTP_READ_TIMEOUT=120             # Read timeout
+HTTP_WRITE_TIMEOUT=10             # Write timeout
+HTTP_CONNECT_TIMEOUT=10           # Connect timeout</code></pre>
+            </div>
+        </div>
+    </section>
+
+    <!-- Troubleshooting -->
+    <section id="troubleshooting" class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+        <h3 class="text-lg font-semibold mb-4">Troubleshooting</h3>
+        <div class="space-y-4">
+            <div>
+                <h4 class="font-medium mb-2">Claude Code shows "undefined ... input_tokens"</h4>
+                <p class="text-sm text-gray-600 mb-2">This usually indicates an issue with streaming response format. Check:</p>
+                <ul class="list-disc list-inside text-sm text-gray-600">
+                    <li>ANTHROPIC_BASE_URL is http://localhost:8082 (not /v1)</li>
+                    <li>The proxy is returning Server-Sent Events for /v1/messages</li>
+                    <li>server.log contains no upstream 400/500 response before the error</li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-medium mb-2">Provider returns HTTP 400</h4>
+                <p class="text-sm text-gray-600 mb-2">This usually means the local runtime rejected the request. Check:</p>
+                <ul class="list-disc list-inside text-sm text-gray-600">
+                    <li>The local server supports POST /v1/messages</li>
+                    <li>The model supports the requested context length and tools</li>
+                    <li>llama.cpp was started with enough --ctx-size</li>
+                    <li>The configured base URL includes /v1 for LM Studio and llama.cpp</li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-medium mb-2">Provider disconnects during streaming</h4>
+                <p class="text-sm text-gray-600 mb-2">Errors like "incomplete chunked read" usually come from the upstream. Try:</p>
+                <ul class="list-disc list-inside text-sm text-gray-600">
+                    <li>Reduce concurrency</li>
+                    <li>Increase timeouts</li>
+                    <li>Retry later</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+        <h3 class="text-lg font-semibold mb-4">FAQ</h3>
+        <div class="space-y-4">
+            <details class="border rounded-lg">
+                <summary class="p-4 cursor-pointer hover:bg-gray-50 font-semibold">
+                    How do I use the model picker in Claude Code?
+                </summary>
+                <div class="p-4 pt-0 border-t text-sm text-gray-600">
+                    Set ANTHROPIC_BASE_URL to point to the proxy, then run /model in Claude Code. The proxy will list all available models from configured providers.
+                </div>
+            </details>
+            <details class="border rounded-lg">
+                <summary class="p-4 cursor-pointer hover:bg-gray-50 font-semibold">
+                    Can I use multiple providers at the same time?
+                </summary>
+                <div class="p-4 pt-0 border-t text-sm text-gray-600">
+                    Yes! Configure multiple providers in your .env file and use MODEL_OPUS, MODEL_SONNET, and MODEL_HAIKU to route different tiers to different providers.
+                </div>
+            </details>
+            <details class="border rounded-lg">
+                <summary class="p-4 cursor-pointer hover:bg-gray-50 font-semibold">
+                    Is this proxy secure?
+                </summary>
+                <div class="p-4 pt-0 border-t text-sm text-gray-600">
+                    The proxy supports authentication via ANTHROPIC_AUTH_TOKEN. Set this to a secure value and only expose the proxy on trusted networks.
+                </div>
+            </details>
+            <details class="border rounded-lg">
+                <summary class="p-4 cursor-pointer hover:bg-gray-50 font-semibold">
+                    How do I run this in production?
+                </summary>
+                <div class="p-4 pt-0 border-t text-sm text-gray-600">
+                    Use a process manager like systemd, Docker, or supervisord to manage the proxy. Ensure you set appropriate rate limits and timeouts for your use case.
+                </div>
+            </details>
+        </div>
+    </section>
+
+    <!-- API Reference -->
+    <section id="api" class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h3 class="text-lg font-semibold mb-4">API Reference</h3>
+        <div class="space-y-4">
+            <div>
+                <h4 class="font-medium mb-2">Admin API Endpoints</h4>
+                <ul class="list-disc list-inside text-sm text-gray-600 space-y-1">
+                    <li><code>GET /admin/</code> - Dashboard</li>
+                    <li><code>GET /admin/providers</code> - Providers management</li>
+                    <li><code>GET /admin/models</code> - Models list</li>
+                    <li><code>GET /admin/routing</code> - Model routing configuration</li>
+                    <li><code>GET /admin/settings</code> - Settings management</li>
+                    <li><code>GET /admin/logs</code> - Logs viewing</li>
+                    <li><code>GET /admin/system</code> - System status</li>
+                    <li><code>GET /admin/health/</code> - Health check</li>
+                    <li><code>GET /admin/metrics/overview</code> - Metrics overview</li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-medium mb-2">Proxy API Endpoints</h4>
+                <ul class="list-disc list-inside text-sm text-gray-600 space-y-1">
+                    <li><code>POST /v1/messages</code> - Create message (streaming)</li>
+                    <li><code>POST /v1/messages/count_tokens</code> - Count tokens</li>
+                    <li><code>GET /v1/models</code> - List available models</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

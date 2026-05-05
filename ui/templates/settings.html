@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <h2 class="text-2xl font-bold mb-6">Settings</h2>
+
+    <!-- Configuration Presets -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+        <h3 class="text-lg font-semibold mb-4">Quick Configuration Presets</h3>
+        <div class="flex gap-3">
+            <button onclick="applyPreset('free')" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+                🆓 Free Models
+            </button>
+            <button onclick="applyPreset('local')" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                💻 Local Only
+            </button>
+            <button onclick="applyPreset('mixed')" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded">
+                🔀 Mixed Setup
+            </button>
+        </div>
+    </div>
+
+    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <form id="settings-form" class="space-y-6">
+            <!-- Rate Limiting -->
+            <details class="border rounded-lg" open>
+                <summary class="p-4 cursor-pointer hover:bg-gray-50 font-semibold">
+                    Rate Limiting
+                </summary>
+                <div class="p-4 pt-0 border-t space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Provider Rate Limit (requests per window)</label>
+                        <input type="number" name="provider_rate_limit" value="{{ settings.provider_rate_limit or 40 }}"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <p class="text-xs text-gray-500 mt-1">Maximum requests per time window. Lower for free providers.</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Provider Rate Window (seconds)</label>
+                        <input type="number" name="provider_rate_window" value="{{ settings.provider_rate_window or 60 }}"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <p class="text-xs text-gray-500 mt-1">Time window for rate limiting in seconds.</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Max Concurrency</label>
+                        <input type="number" name="provider_max_concurrency" value="{{ settings.provider_max_concurrency or 5 }}"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <p class="text-xs text-gray-500 mt-1">Maximum concurrent requests per provider.</p>
+                    </div>
+                </div>
+            </details>
+
+            <!-- Timeouts -->
+            <details class="border rounded-lg">
+                <summary class="p-4 cursor-pointer hover:bg-gray-50 font-semibold">
+                    Timeouts (seconds)
+                </summary>
+                <div class="p-4 pt-0 border-t space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Read Timeout</label>
+                        <input type="number" name="http_read_timeout" value="{{ settings.http_read_timeout or 120 }}"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <p class="text-xs text-gray-500 mt-1">Maximum time to wait for response from provider.</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Write Timeout</label>
+                        <input type="number" name="http_write_timeout" value="{{ settings.http_write_timeout or 10 }}"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <p class="text-xs text-gray-500 mt-1">Maximum time to send request to provider.</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Connect Timeout</label>
+                        <input type="number" name="http_connect_timeout" value="{{ settings.http_connect_timeout or 10 }}"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <p class="text-xs text-gray-500 mt-1">Maximum time to establish connection to provider.</p>
+                    </div>
+                </div>
+            </details>
+
+            <!-- Optimizations -->
+            <details class="border rounded-lg">
+                <summary class="p-4 cursor-pointer hover:bg-gray-50 font-semibold">
+                    Optimizations
+                </summary>
+                <div class="p-4 pt-0 border-t space-y-4">
+                    <label class="flex items-center">
+                        <input type="checkbox" name="enable_network_probe_mock" {% if settings.enable_network_probe_mock %}checked{% endif %}>
+                        <div class="ml-2">
+                            <span class="text-sm text-gray-700">Enable Network Probe Mock</span>
+                            <p class="text-xs text-gray-500">Skip network connectivity checks for faster startup.</p>
+                        </div>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" name="enable_title_generation_skip" {% if settings.enable_title_generation_skip %}checked{% endif %}>
+                        <div class="ml-2">
+                            <span class="text-sm text-gray-700">Skip Title Generation</span>
+                            <p class="text-xs text-gray-500">Skip generating titles for conversations.</p>
+                        </div>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" name="enable_suggestion_mode_skip" {% if settings.enable_suggestion_mode_skip %}checked{% endif %}>
+                        <div class="ml-2">
+                            <span class="text-sm text-gray-700">Skip Suggestion Mode</span>
+                            <p class="text-xs text-gray-500">Skip suggestion mode for faster responses.</p>
+                        </div>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" name="enable_filepath_extraction_mock" {% if settings.enable_filepath_extraction_mock %}checked{% endif %}>
+                        <div class="ml-2">
+                            <span class="text-sm text-gray-700">Enable Filepath Extraction Mock</span>
+                            <p class="text-xs text-gray-500">Use mock filepath extraction for faster processing.</p>
+                        </div>
+                    </label>
+                </div>
+            </details>
+
+            <!-- Web Tools -->
+            <details class="border rounded-lg">
+                <summary class="p-4 cursor-pointer hover:bg-gray-50 font-semibold">
+                    Web Tools
+                </summary>
+                <div class="p-4 pt-0 border-t space-y-4">
+                    <label class="flex items-center">
+                        <input type="checkbox" name="enable_web_server_tools" {% if settings.enable_web_server_tools %}checked{% endif %}>
+                        <div class="ml-2">
+                            <span class="text-sm text-gray-700">Enable Web Server Tools</span>
+                            <p class="text-xs text-gray-500">Allow Claude Code to perform outbound HTTP requests.</p>
+                        </div>
+                    </label>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Web Fetch Allowed Schemes</label>
+                        <input type="text" name="web_fetch_allowed_schemes" value="{{ settings.web_fetch_allowed_schemes or 'http,https' }}"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <p class="text-xs text-gray-500 mt-1">Comma-separated list of allowed URL schemes (e.g., http,https).</p>
+                    </div>
+                    <label class="flex items-center">
+                        <input type="checkbox" name="web_fetch_allow_private_networks" {% if settings.web_fetch_allow_private_networks %}checked{% endif %}>
+                        <div class="ml-2">
+                            <span class="text-sm text-gray-700">Allow Private Networks</span>
+                            <p class="text-xs text-gray-500">Allow requests to private network addresses (localhost, 192.168.x.x, etc.).</p>
+                        </div>
+                    </label>
+                </div>
+            </details>
+
+            <div class="flex gap-4">
+                <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded">
+                    Save Settings
+                </button>
+                <button type="button" onclick="resetToDefaults()" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded">
+                    Reset to Defaults
+                </button>
+                <button type="button" onclick="location.reload()" class="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function applyPreset(preset) {
+        if (!confirm(`Apply "${preset}" preset? This will update your settings.`)) {
+            return;
+        }
+
+        authenticatedFetch('/admin/settings/preset/' + preset, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.detail || 'Failed to apply preset');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Preset applied successfully!');
+            clearCache();
+            location.reload();
+        })
+        .catch(error => {
+            console.error('Failed to apply preset:', error);
+            alert('Failed to apply preset: ' + error.message);
+        });
+    }
+
+    function resetToDefaults() {
+        if (!confirm('Reset all settings to defaults? This cannot be undone.')) {
+            return;
+        }
+
+        authenticatedFetch('/admin/settings/reset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.detail || 'Failed to reset settings');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Settings reset to defaults!');
+            clearCache();
+            location.reload();
+        })
+        .catch(error => {
+            console.error('Failed to reset settings:', error);
+            alert('Failed to reset settings: ' + error.message);
+        });
+    }
+
+    document.getElementById('settings-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const settings = {};
+        formData.forEach((value, key) => {
+            if (this.querySelector(`[name="${key}"]`).type === 'checkbox') {
+                settings[key] = this.querySelector(`[name="${key}"]`).checked;
+            } else if (this.querySelector(`[name="${key}"]`).type === 'number') {
+                settings[key] = parseInt(value);
+            } else {
+                settings[key] = value;
+            }
+        });
+
+        // Disable submit button
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving...';
+
+        authenticatedFetch('/admin/settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(settings)
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.detail || 'Failed to save settings');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Settings saved successfully!');
+            clearCache();
+        })
+        .catch(error => {
+            console.error('Failed to save settings:', error);
+            alert('Failed to save settings: ' + error.message);
+        })
+        .finally(() => {
+            // Re-enable submit button
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Save Settings';
+        });
+    });
+</script>
+{% endblock %}
